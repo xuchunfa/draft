@@ -2,19 +2,37 @@ package main
 
 import (
 	"fmt"
-	"time"
+	"runtime"
+	"sync"
 )
 
 func main() {
 
-	// 模拟time.After内存泄漏
-	for {
-		select {
-		case <-time.After(time.Second):
-			fmt.Println(time.Now())
-		default: // 加上default 非阻塞写
-		}
+	wg := sync.WaitGroup{}
+	reqNums := 10
+	//控制协程并发数量
+	nums := make(chan struct{}, 2)
+	for i := 0; i < reqNums; i++ {
+		wg.Add(1)
+		nums <- struct{}{}
+		go func(i int) {
+			defer func() {
+				wg.Done()
+				<-nums
+			}()
+			fmt.Printf("goroutine_num: %d, go func: %d \n", runtime.NumGoroutine(), i)
+		}(i)
 	}
+	wg.Wait()
+
+	// 模拟time.After内存泄漏
+	//for {
+	//	select {
+	//	case <-time.After(time.Second):
+	//		fmt.Println(time.Now())
+	//	default: // 加上default 非阻塞写
+	//	}
+	//}
 
 	// 往nil的channel读/写都会阻塞当前协程
 	//ch := make(chan int)
